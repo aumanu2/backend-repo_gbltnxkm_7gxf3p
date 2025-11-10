@@ -1,8 +1,11 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, EmailStr
+from typing import Optional
+from database import create_document
 
-app = FastAPI()
+app = FastAPI(title="AI B2B SaaS Backend")
 
 app.add_middleware(
     CORSMiddleware,
@@ -14,11 +17,26 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"message": "Hello from FastAPI Backend!"}
+    return {"message": "AI B2B SaaS Backend Running"}
 
 @app.get("/api/hello")
 def hello():
     return {"message": "Hello from the backend API!"}
+
+class WaitlistPayload(BaseModel):
+    email: EmailStr
+    company: Optional[str] = None
+    role: Optional[str] = None
+    notes: Optional[str] = None
+
+@app.post("/api/waitlist")
+def join_waitlist(payload: WaitlistPayload):
+    try:
+        # Collection name derives from schema class name lowercased in schemas.py: Waitlistentry -> "waitlistentry"
+        inserted_id = create_document("waitlistentry", payload.model_dump())
+        return {"status": "ok", "id": inserted_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/test")
 def test_database():
